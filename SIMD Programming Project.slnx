@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="SIMD Programming Project.vcxproj" />
+  <Project Path="SIMD Programming Project.vcxproj" Id="ecf18bf1-a31b-466e-9912-8b9ea8d71c08" />
 </Solution>
