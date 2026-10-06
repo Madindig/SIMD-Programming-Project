@@ -53,6 +53,37 @@ pop     rdi
 pop     rsi
 %endmacro
 
+%macro check_remainder 0
+pxor xmm1, xmm1
+cmp rcx, 0
+jz REMAINDER_LOOP
+%endmacro
+
+%macro add_loop 0
+; accumulators
+vpxor xmm2, xmm2, xmm2 ; clear prev_1 = 0
+vpxor xmm3, xmm3, xmm3 ; clear prev_2 = 0
+.L1_ADD_LOOP:
+    ; note: xmm is 128-bit
+    vcvtps2pd xmm0, [rdx]   ; curr1 := first 2 sp(32-bits) floats to 2 dp(64-bits)
+    vcvtps2pd xmm1, [rdx+2] ; curr2 := first 2 sp(32-bits) floats to 2 dp(64-bits)
+    vaddpd xmm2, xmm0, xmm2 ; prev_1 := prev_1 + curr_1
+    vaddpd xmm3, xmm1, xmm3 ; prev_2 := prev_2 + curr_2
+    add rdx, 4
+    loop L1_ADD_LOOP
+%endmacro
+
+%macro remainder_loop 0
+pxor xmm1, xmm1
+mov rcx, rsi                ;
+cmp rcx, 0                  ;
+jz SUM_AND_MEAN             ;
+.L2_REMAINDER_LOOP:
+    cvtss2sd xmm0, [rdx]
+    addsd xmm1, xmm0        ;
+    loop L2_REMAINDER_LOOP  ;
+%endmacro
+
 %macro get_sum 0
 ; get the sum of src_dst
 mov r12, rdx
@@ -61,20 +92,13 @@ xor rdx, rdx
 ; size / 4 bit  => ans r remainder  
 ; eax  / rcx    => eax r edx
 mov rax, rcx    ; move size
-mov rcx, 4      ; number of sp-fp in 128-bit register
-mov rsi, rdx
-mov rdi, rcx    
-mov rdx, r12
-vpxor xmm2, xmm2, xmm2
-vpxor xmm3, xmm3, xmm3
-pxor xmm1, xmm1
-cmp rcx, 0
-jz REMAINDER_LOOP
-
-ADD_LOOP:
-    vcvtps2
-
-
+mov rcx, 4      ; no. # of 32-bit sp-fp in 128-bit register
+mov rsi, rdx    ; remaining start
+mov rdi, rcx    ; remaining end
+mov rdx, r12    ; *src_array
+check_remainder
+add_loop
+remainder_loop
 %endmacro
 
 global xmmfunc
@@ -87,6 +111,5 @@ global xmmfunc
 xmmfunc:
 	push_arg
     get_sum
-
     pop_arg
 	ret
