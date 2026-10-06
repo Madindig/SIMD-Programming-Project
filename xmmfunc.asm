@@ -46,7 +46,6 @@ push    rcx
 
 %macro pop_arg 0
 ; pop arguments
-pop     rcx
 pop     rbp
 pop     r12
 pop     rdi
@@ -54,51 +53,119 @@ pop     rsi
 %endmacro
 
 %macro check_remainder 0
+; checks if has left-over elements
 pxor xmm1, xmm1
 cmp rcx, 0
-jz REMAINDER_LOOP
+jz L2_MEAN_REMAINDER_LOOP
 %endmacro
 
-%macro add_loop 0
-; accumulators
+%macro mean_add_bulk_loop 0
+; sum elements in bulk
+; RETURNS: 
+; XMM2 := bulk_1, 
+; XMM3 := bulk_2
 vpxor xmm2, xmm2, xmm2 ; clear prev_1 = 0
 vpxor xmm3, xmm3, xmm3 ; clear prev_2 = 0
-.L1_ADD_LOOP:
+.L1_MEAN_ADD_LOOP:
     ; note: xmm is 128-bit
-    vcvtps2pd xmm0, [rdx]   ; curr1 := first 2 sp(32-bits) floats to 2 dp(64-bits)
-    vcvtps2pd xmm1, [rdx+2] ; curr2 := first 2 sp(32-bits) floats to 2 dp(64-bits)
-    vaddpd xmm2, xmm0, xmm2 ; prev_1 := prev_1 + curr_1
-    vaddpd xmm3, xmm1, xmm3 ; prev_2 := prev_2 + curr_2
-    add rdx, 4
-    loop L1_ADD_LOOP
+    vcvtps2pd xmm0, [rdx]   ; curr1 := first 2 sp(4-bytes/32-bits) floats to 2 dp(8-bytes/64-bits)
+                            ; array still 8-bytes
+    vcvtps2pd xmm1, [rdx+8] ; curr2 := first 2 sp(32-bits) floats to 2 dp(64-bits)
+    vaddpd xmm2, xmm0, xmm2 ; prev_1 := prev_1 + curr_1, bulk_1 is prev_1
+    vaddpd xmm3, xmm1, xmm3 ; prev_2 := prev_2 + curr_2, bulk_2 is prev_2
+    add rdx, 16
+    loop L1_MEAN_ADD_LOOP
 %endmacro
 
-%macro remainder_loop 0
-pxor xmm1, xmm1
-mov rcx, rsi                ;
-cmp rcx, 0                  ;
-jz SUM_AND_MEAN             ;
-.L2_REMAINDER_LOOP:
-    cvtss2sd xmm0, [rdx]
-    addsd xmm1, xmm0        ;
-    loop L2_REMAINDER_LOOP  ;
+%macro mean_add_remainder_loop 0
+; add remaining left-over elements to get residual sum
+; INPUT:
+; RETURNS: xmm1 := residual sum
+pxor xmm1, xmm1             ; clear xmm1
+mov rcx, rsi                ; remaining
+cmp rcx, 0                  
+jz SUM_BULK_N_PARTIAL       ; jmp if no remaining
+.L2_MEAN_REMAINDER_LOOP:
+    cvtss2sd xmm0, [rdx]    ; rdx -dp(8-bytes)-> xmm0
+    addsd xmm1, xmm0        ; xmm0 <- xmm0 + xmm1
+    loop L2_MEAN_REMAINDER_LOOP 
 %endmacro
 
-%macro get_sum 0
+%macro get_mean 0
+; gets mean
+; INPUT:
+;   XMM3 := bulk_1 sum
+;   XMM2 := bulk_2 sum
+;   XMM1 := residual sum
+; RETURNS: XMM0 := sum
+.SUM_BULK_N_PARTIAL:
+vpxor xmm0, xmm0
+; sum from add loop
+vaddpd xmm2, xmm2, xmm3     ; xmm2:[ab, cd] <- xmm2:[a b] + xmm3:[c d]
+vhaddpd xmm2, xmm2, xmm2    ; xmm2:[abcd, abcd] <- xmm2[ab, cd] + xmm2[ab, cd]  
+addsd xmm0, xmm2         
+addsd xmm0, xmm1            ; add remainder/residuals 
+; derive mean
+pop rcx                     ; rcx <- stack[rcx] assuming stack has rcx(N) on top
+cvtsi2sd xmm1,  rcx         ; xmm0(N) <-dp(8-bytes)- rcx
+divsd xmm0, xmm1            ; mean = sum / N
+cvtsd2ss xmm2, xmm0         ; xmm2 <-sp(4-bytes)- xmm0
+movss [r9], xmm2            ; sum *= xmm2
+%endmacro
+
+%macro get_mean_sum 0
 ; get the sum of src_dst
-mov r12, rdx
+mov r12, rdx    ; mov
 xor rdx, rdx
 ; note: div 
 ; size / 4 bit  => ans r remainder  
 ; eax  / rcx    => eax r edx
 mov rax, rcx    ; move size
 mov rcx, 4      ; no. # of 32-bit sp-fp in 128-bit register
-mov rsi, rdx    ; remaining start
-mov rdi, rcx    ; remaining end
+div rcx
+mov rsi, rdx    ; remaining elements
+mov rdi, rcx    ; no. $ of add loops
 mov rdx, r12    ; *src_array
 check_remainder
-add_loop
-remainder_loop
+mean_add_bulk_loop
+mean_add_remainder_loop
+%endmacro
+
+%macro get_variance_sum 0
+pxor xmm4, xmm4
+pxor xmm5, xmm5
+pxor xmm3, xmm3
+mov rcx, rdi
+cmp rcx, 0
+jz L4_VARIANCE_REMAINDER_LOOP
+var_add_bulk_loop
+var_add_remainder_loop
+%endmacro
+
+%macro var_add_bulk_loop
+.L3_VARIANCE_BULK_LOOP:
+    vcvtps2pd   xmm2, [rdx]          ; first 2 floats  -> doubles
+    vcvtps2pd   xmm3, [rdx+8]        ; second 2 floats -> doubles
+    vsubpd      xmm2, xmm2, xmm0     ; subtract mean
+    vsubpd      xmm3, xmm3, xmm0     ; subtract mean
+    vfmadd231pd xmm4, xmm2, xmm2     ; accumulate sq diff 1
+    vfmadd231pd xmm5, xmm3, xmm3     ; accumulate sq diff 2
+    add         rdx, 16              ; move 4 floats
+    loop        L3_VARIANCE_BULK_LOOP
+
+    pxor        xmm3, xmm3
+    mov         rcx, rsi             ; load remainder count
+    cmp         rcx, 0
+    jz          SUM_AND_VAR
+%endmacro
+
+%macro var_add_remainder_loop
+.L4_VARIANCE_REMAINDER_LOOP:
+    cvtss2sd xmm2, [rdx]
+    subsd xmm3, xmm0
+    vfmadd231sd xmm3, xmm2, xmm2 ; accumulate differences xmm3 += xmm2 * xmm2
+    add rdx, 4
+    loop L4_VARIANCE_REMAINDER_LOOP
 %endmacro
 
 global xmmfunc
@@ -110,6 +177,9 @@ global xmmfunc
 ; rbp+32    : pointer to var
 xmmfunc:
 	push_arg
-    get_sum
+    get_mean_sum
+    get_mean
+    get_variance_sum
+    get_variance
     pop_arg
 	ret
