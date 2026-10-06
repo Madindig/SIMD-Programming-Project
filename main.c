@@ -5,7 +5,7 @@
 #include <time.h>
 #include <math.h>
 #define RUNS 30
-#define TOLERANCE 1e-6f
+#define TOLERANCE 0.0f
 
 int close_enough(float a, float b) {
 	return fabsf(a - b) <= TOLERANCE * fmaxf(1.0f, fabsf(a));
@@ -27,13 +27,14 @@ void cfunc(unsigned int size, float* src_array, float* dst_array, float* mean, f
 		sum_sq_diff += diff * diff;
 	}
 
-	*var = (float)(sum_sq_diff / size);
+	double v = sum_sq_diff / size;
+	*var = (float)v;
 
-	double denominator_reciprocal = 1.0 / sqrt(*var + 1e-6);
+	double denominator_reciprocal = 1.0 / sqrt(v + 1e-6);
 
 	//loop for Z-score Vector Normalization
 	for (unsigned int i = 0; i < size; i++) {
-		dst_array[i] = (float)(((double)src_array[i] - *mean) * denominator_reciprocal);
+		dst_array[i] = (float)(((double)src_array[i] - m) * denominator_reciprocal);
 	}
 }
 
