@@ -18,21 +18,22 @@ void cfunc(unsigned int size, float* src_array, float* dst_array, float* mean, f
 		sum += (double)src_array[i];
 	}
 
-	*mean = (float)(sum / size);
+	double m = sum / size;
+	*mean = (float)m;
 
 	double sum_sq_diff = 0.0;
 	for (unsigned int i = 0; i < size; i++) {
-		double diff = (double)src_array[i] - *mean;
+		double diff = (double)src_array[i] - m;
 		sum_sq_diff += diff * diff;
 	}
 
 	*var = (float)(sum_sq_diff / size);
 
-	double denominator = sqrt(*var + 1e-6);
+	double denominator_reciprocal = 1.0 / sqrt(*var + 1e-6);
 
 	//loop for Z-score Vector Normalization
 	for (unsigned int i = 0; i < size; i++) {
-		dst_array[i] = (float)(((double)src_array[i] - *mean) / denominator);
+		dst_array[i] = (float)(((double)src_array[i] - *mean) * denominator_reciprocal);
 	}
 }
 
