@@ -6,36 +6,10 @@
 #include <math.h>
 #define RUNS 30
 #define TOLERANCE 0.0f
+#include "cfunc.c"
 
 int close_enough(float a, float b) {
 	return fabsf(a - b) <= TOLERANCE * fmaxf(1.0f, fabsf(a));
-}
-
-void cfunc(unsigned int size, float* src_array, float* dst_array, float* mean, float* var) {
-	double sum = 0.0;
-
-	for (unsigned int i = 0; i < size; i++) {
-		sum += (double)src_array[i];
-	}
-
-	double m = sum / size;
-	*mean = (float)m;
-
-	double sum_sq_diff = 0.0;
-	for (unsigned int i = 0; i < size; i++) {
-		double diff = (double)src_array[i] - m;
-		sum_sq_diff += diff * diff;
-	}
-
-	double v = sum_sq_diff / size;
-	*var = (float)v;
-
-	double denominator_reciprocal = 1.0 / sqrt(v + 1e-6);
-
-	//loop for Z-score Vector Normalization
-	for (unsigned int i = 0; i < size; i++) {
-		dst_array[i] = (float)(((double)src_array[i] - m) * denominator_reciprocal);
-	}
 }
 
 extern void x86_64func(unsigned int size, float* src_array, float* dst_array, float* mean, float* var);
@@ -57,6 +31,9 @@ void time_implementation(int impl, unsigned int size, float* src_array, float* d
 				cfunc(size, src_array, dst_array, mean, var);
 				break;
 			case 1: //change back to 3
+				ymmfunc(size, src_array, dst_array, mean, var);
+				break;
+			case 2:
 				ymmfunc(size, src_array, dst_array, mean, var);
 				break;
 		}
@@ -189,7 +166,7 @@ int main() {
 		float* mean_list[2] = { &mean_c_array[i], &mean_ymm_array[i] };
 		float* var_list[2] = { &var_c_array[i], &var_ymm_array[i] };
 
-		for (int impl = 0; impl < 2; impl++) { //change to i < 4
+		for (int impl = 0; impl < 3; impl++) { //change to i < 4
 			time_implementation(impl, size, src_array[i], dst_list[impl], mean_list[impl], var_list[impl]);
 		}
 	}
