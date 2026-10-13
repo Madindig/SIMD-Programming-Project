@@ -11,7 +11,7 @@ Four implementations of mean, variance, and z-score vector normalization.
 
 The four implementation functions take the same five parameters:
 1. unsigned int size // The number of elements passed
-2. float* src_array // The base pointer of the input vector X
+2. float* src_array // The base pointer of the input vector X, which contains random single-precision FP values between -100.0f and +100.0f
 3. float* dst_array // The base pointer of the destination vector Z
 4. float* mean // The address where the mean of X will be stored
 5. float* var // The address where the variance of X will be stored
@@ -102,9 +102,9 @@ These values are stored in registers to later overwrite rcx whenever necessary. 
 
 ## 5) Analysis of Speedups
 
-One result not aligned with the theoretical speedups is the speedup of XMM and YMM compared to an x86-64 baseline. Although XMM and YMM processing four and eight SP floats at a time predicts a 4x and 8x speedup, many parts of the code do not actually benefit from this speedup, such as the scalar division, square root, reciprocal, and storage of mean and variance. Other parts of the SIMD code are not necessary for the x86-64 version but become necessary for the SIMD implementations, such as the horizontal adds at the end of the mean and variance calculation, broadcasting of mean and z-score denominator's reciprocal, and the computation and control flow logic to allow for the processing of boundary elements in remainder loops. These non-speedups and additional instructions could explain why the speedup from x86-64 does not match the theoretical speedup of 4x and 8x. 
+One result not aligned with the theoretical speedups is the speedup of XMM and YMM compared to an x86-64 baseline. Although XMM and YMM processing four and eight SP floats at a time predicts a 4x and 8x speedup, many parts of the code do not actually benefit from this speedup, such as the scalar division, square root, reciprocal, and storage of mean and variance. Other parts of the SIMD code are not necessary for the x86-64 version but become necessary for the SIMD implementations, such as the horizontal adds at the end of the mean and variance calculation, broadcasting of the mean and z-score denominator's reciprocal, and the computation and control flow logic to allow for the processing of boundary elements in remainder loops. These non-speedups and additional instructions could explain why the speedup from x86-64 does not match the theoretical speedup of 4x and 8x. 
 
-A different explanation is hinted at by the trend of the speedup from the x86-64 version to the SIMD versions as the size of the input vector increases. As the size of the input vector increases, the execution time advantage of SIMD compared to x86-64 decreases. What this hints at is that the proportion of execution time spent doing the parallel computation, which is responsible for the speedup, decreases as the size of the input vector increases. One likely explanation is that a lot of the execution time is instead spent waiting on memory operations inside the loops to complete, bottlenecking the rest of the parallel computing code since the data has not yet arrived from or been written to the RAM. 
+A different explanation is hinted at by the trend of the speedup from the x86-64 version to the SIMD versions as the size of the input vector increases. As the size of the input vector increases, the execution time advantage of SIMD compared to x86-64 decreases. This trend implies that the proportion of execution time spent doing the parallel computation, which is responsible for the speedup, decreases as the size of the input vector increases. Since most of the execution time is spent inside the primary loops and the only other instructions inside the primary loops besides the parallel computations are memory-bound reads and writes, one likely explanation is that a lot of the execution time is spent waiting on memory operations inside the loops to complete, bottlenecking the rest of the parallel computing code since the data has not yet arrived from or been written to the RAM. 
 
 ## 6) Problems and Solutions, Unique Methods, and AHA moments
 
