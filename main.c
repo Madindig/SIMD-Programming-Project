@@ -9,7 +9,7 @@
 #include "cfunc.c"
 
 int close_enough(float a, float b) {
-	return fabsf(a - b) <= TOLERANCE * fmaxf(1.0f, fabsf(a));
+	return fabsf(a - b) <= TOLERANCE;
 }
 
 extern void x86_64func(unsigned int size, float* src_array, float* dst_array, float* mean, float* var);
