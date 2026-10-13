@@ -15,10 +15,10 @@ void cfunc(unsigned int size, float* src_array, float* dst_array, float* mean, f
 
 	*var = (float)(sum_sq_diff / size);
 
-	double denominator = sqrt(*var + 1e-6);
+	double reciprocal_denominator = 1.0 / sqrt(*var + 1e-6);
 
 	//loop for Z-score Vector Normalization
 	for (unsigned int i = 0; i < size; i++) {
-		dst_array[i] = (float)(((double)src_array[i] - *mean) / denominator);
+		dst_array[i] = (float)(((double)src_array[i] - *mean) * reciprocal_denominator);
 	}
 }

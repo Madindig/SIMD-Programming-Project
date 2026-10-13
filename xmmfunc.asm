@@ -60,6 +60,7 @@ mov rcx, 4      ; no. # of 32-bit sp-fp in 128-bit register
 div rcx
 mov rsi, rdx    ; remaining elements
 mov rdi, rax    ; no. of add loops stored in rdi (was rcx)
+mov rcx, rax    ; loop counter for mean_add_bulk_loop
 mov rdx, r12    ; *src_array
 %endmacro
 
@@ -155,12 +156,15 @@ pxor xmm3, xmm3
 %endmacro
 
 %macro var_add_remainder_loop 0
+    cmp rcx, 0                   ; rcx = remainder count; skip if none
+    jz  %%L4_VARIANCE_REMAINDER_DONE
 %%L4_VARIANCE_REMAINDER_LOOP:
     cvtss2sd xmm2, [rdx]
     subsd xmm2, xmm0
     vfmadd231sd xmm3, xmm2, xmm2 ; accumulate differences xmm3 += xmm2 * xmm2
     add rdx, 4
     loop %%L4_VARIANCE_REMAINDER_LOOP
+%%L4_VARIANCE_REMAINDER_DONE:
 %endmacro
 
 ; See [3] get_mean

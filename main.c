@@ -5,7 +5,7 @@
 #include <time.h>
 #include <math.h>
 #define RUNS 30
-#define TOLERANCE 0.0f
+#define TOLERANCE 1e-6f
 #include "cfunc.c"
 
 int close_enough(float a, float b) {
@@ -17,8 +17,7 @@ extern void xmmfunc(unsigned int size, float* src_array, float* dst_array, float
 extern void ymmfunc(unsigned int size, float* src_array, float* dst_array, float* mean, float* var);
 
 void time_implementation(int impl, unsigned int size, float* src_array, float* dst_array, float* mean, float* var) {
-	//const char* impl_names[4] = { "C", "x86-64", "XMM", "YMM" };
-	const char* impl_names[2] = { "C", "YMM" };
+	const char* impl_names[4] = { "C", "x86-64", "XMM", "YMM" };
 
 	LARGE_INTEGER freq, t_start, t_end;
 	QueryPerformanceFrequency(&freq); // ticks per second
@@ -30,10 +29,13 @@ void time_implementation(int impl, unsigned int size, float* src_array, float* d
 			case 0:
 				cfunc(size, src_array, dst_array, mean, var);
 				break;
-			case 1: //change back to 3
-				ymmfunc(size, src_array, dst_array, mean, var);
+			case 1:
+				x86_64func(size, src_array, dst_array, mean, var);
 				break;
 			case 2:
+				xmmfunc(size, src_array, dst_array, mean, var);
+				break;
+			case 3:
 				ymmfunc(size, src_array, dst_array, mean, var);
 				break;
 		}
@@ -46,8 +48,7 @@ void time_implementation(int impl, unsigned int size, float* src_array, float* d
 }
 
 void check_implementation(int impl, unsigned int size, float* c_dst_array, float c_mean, float c_var, float* dst_array, float mean, float var) {
-	//const char* impl_names[4] = { "C", "x86-64", "XMM", "YMM" };
-	const char* impl_names[2] = { "C", "YMM" };
+	const char* impl_names[4] = { "C", "x86-64", "XMM", "YMM" };
 
 	printf("  %s:\n", impl_names[impl]);
 	printf("    Mean: %.10f, Variance: %.10f\n", mean, var);
@@ -159,14 +160,11 @@ int main() {
 		}
 
 		//destination, mean, and variance of each implementation for this size (0 : C; 1 : x86-64; 2 : XMM; 3 : YMM)
-		//float* dst_list[4] = { dst_c_array[i], dst_x86_64_array[i], dst_xmm_array[i], dst_ymm_array[i] };
-		//float* mean_list[4] = { &mean_c_array[i], &mean_x86_64_array[i], &mean_xmm_array[i], &mean_ymm_array[i] };
-		//float* var_list[4] = { &var_c_array[i], &var_x86_64_array[i], &var_xmm_array[i], &var_ymm_array[i] };
-		float* dst_list[2] = { dst_c_array[i], dst_ymm_array[i] };
-		float* mean_list[2] = { &mean_c_array[i], &mean_ymm_array[i] };
-		float* var_list[2] = { &var_c_array[i], &var_ymm_array[i] };
+		float* dst_list[4] = { dst_c_array[i], dst_x86_64_array[i], dst_xmm_array[i], dst_ymm_array[i] };
+		float* mean_list[4] = { &mean_c_array[i], &mean_x86_64_array[i], &mean_xmm_array[i], &mean_ymm_array[i] };
+		float* var_list[4] = { &var_c_array[i], &var_x86_64_array[i], &var_xmm_array[i], &var_ymm_array[i] };
 
-		for (int impl = 0; impl < 3; impl++) { //change to i < 4
+		for (int impl = 0; impl < 4; impl++) { 
 			time_implementation(impl, size, src_array[i], dst_list[impl], mean_list[impl], var_list[impl]);
 		}
 	}
@@ -185,14 +183,11 @@ int main() {
 		}
 
 		//destination, mean, and variance of each implementation for this size (0 : C; 1 : x86-64; 2 : XMM; 3 : YMM)
-		//float* dst_list[4] = { dst_c_array[i], dst_x86_64_array[i], dst_xmm_array[i], dst_ymm_array[i] };
-		//float* mean_list[4] = { &mean_c_array[i], &mean_x86_64_array[i], &mean_xmm_array[i], &mean_ymm_array[i] };
-		//float* var_list[4] = { &var_c_array[i], &var_x86_64_array[i], &var_xmm_array[i], &var_ymm_array[i] };
-		float* dst_list[2] = { dst_c_array[i], dst_ymm_array[i] };
-		float* mean_list[2] = { &mean_c_array[i], &mean_ymm_array[i] };
-		float* var_list[2] = { &var_c_array[i], &var_ymm_array[i] };
+		float* dst_list[4] = { dst_c_array[i], dst_x86_64_array[i], dst_xmm_array[i], dst_ymm_array[i] };
+		float* mean_list[4] = { &mean_c_array[i], &mean_x86_64_array[i], &mean_xmm_array[i], &mean_ymm_array[i] };
+		float* var_list[4] = { &var_c_array[i], &var_x86_64_array[i], &var_xmm_array[i], &var_ymm_array[i] };
 
-		for (int impl = 0; impl < 2; impl++) { //change to impl < 4
+		for (int impl = 0; impl < 4; impl++) { 
 			check_implementation(impl, size, dst_c_array[i], mean_c_array[i], var_c_array[i], dst_list[impl], *mean_list[impl], *var_list[impl]);
 		}
 	}

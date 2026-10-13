@@ -1,24 +1,25 @@
 ; Names: Campo, Macayan, Madridijo | Section: CSC612M G01
-default rel
-bit 64
-
 section .data
 align 8
 zero    dq 0.0
+one     dq 1.0  
 epsilon dq 1.0e-6
 
 section .text
+default rel
+bits 64
+
 global x86_64func
 
 x86_64func:
-	mov ecx, ecx
-	mov r11, [rsp + 40]
-	cvtsi2sd xmm1, rcx
+    mov ecx, ecx
+    mov r11, [rsp + 40]
+    cvtsi2sd xmm1, rcx
 
-	movsd xmm0, [zero]
-	xor r10d, r10d
-	test rcx, rcx
-	jz .mean_div
+    movsd xmm0, [zero]
+    xor r10d, r10d
+    test rcx, rcx
+    jz .mean_div
 
 .sum_loop:
     cvtss2sd xmm3, [rdx + r10*4] 
@@ -54,14 +55,17 @@ x86_64func:
     cvtss2sd xmm0, xmm0
     addsd   xmm0, [epsilon]
     sqrtsd  xmm4, xmm0
+    movsd   xmm1, [one]
+    divsd   xmm1, xmm4
     xor     r10d, r10d
     test    rcx, rcx
     jz      .done
 
 .z_loop:
-    cvtss2sd xmm3, [rdx + r10*4]
+    movss   xmm3, [rdx + r10*4]
+    cvtss2sd xmm3, xmm3
     subsd   xmm3, xmm2
-    divsd   xmm3, xmm4
+    mulsd xmm3, xmm1
     cvtsd2ss xmm3, xmm3
     movss   [r8 + r10*4], xmm3
     inc     r10
