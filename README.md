@@ -111,3 +111,28 @@ A different explanation is hinted at by the trend of the speedup from the x86-64
 The main problem we encountered was the consistent failure of the error check when first implementing using AVX2. We found that we could not guarantee the results would pass the error check every run because using single precision for the arithmetic of computing the variance meant any imprecision in the mean value calculation was magnified because of the squared term inside the variance summation. To ensure that all the intermediary arithmetic was as precise as possible, we switched all the intermediary computations from SP to DP floats. This is a trade-off between precision and performance. There is additional overhead when loading and storing because of the need to convert the SP floats to DP floats and back again. Additionally, since one DP float is double the size of an SP float, we can now process only half the number of elements at a time using packed symmetric operations because we are constrained by the size of the XMM and YMM registers.
 
 Other problems we encountered had to do with optimization. For instance, before the z-score computation in the assembly implementations, we solved for the reciprocal of the denominator and saved this value in a register so we could use vmulpd/mulsd instead of vdivpd/divsd (vdivpd/divsd is much slower). We also discovered an instruction called vfmadd231pd, which we used to square the difference and add the squared difference to the accumulator registers in one step instead of separately using vmulpd and vaddpd. 
+
+## 7) Debug Mode Documentation
+
+### Image 6: Execution times on Madridijo's machine (local Windows debugger)
+<img src="images/A)%20Execution%20times%20(Debug%20mode).png">
+
+### Image 7: Correctness check for 2^20 elements on Madridijo's machine (local Windows debugger)
+<img src="images/B)%20Correctness%20check%202%20to%20the%2020%20(Debug%20mode).png">
+
+### Image 8: Correctness check for 2^26 elements on Madridijo's machine (local Windows debugger)
+<img src="images/B)%20Correctness%20check%202%20to%20the%2026%20(Debug%20mode).png">
+
+### Image 9: Correctness check for 2^30 elements on Madridijo's machine (local Windows debugger)
+<img src="images/B)%20Correctness%20check%202%20to%20the%2030%20(Debug%20mode).png">
+
+### Image 10: Boundary check for 1003 elements on Madridijo's machine (local Windows debugger)
+<img src="images/C)%20Boundary%20check%20(Debug%20mode).png">
+
+## 8) Output on Macayan's Machine (Release Mode)
+
+### Image 11: Execution times on Macayan's machine in release mode
+<img src="images/D)%20Execution%20times%20(Macayan%20release%20mode).png">
+
+### Image 12: Correctness check on Macayan's machine in release mode
+<img src="/images/E)%20Correctness%20check%20(Macayan%20release%20mode).png">
