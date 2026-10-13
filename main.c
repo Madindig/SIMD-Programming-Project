@@ -103,7 +103,7 @@ void check_implementation(int impl, unsigned int size, float* c_dst_array, float
 int main() {
 	srand(time(NULL));
 
-	int size_list[3] = { 20, 26, 28 };
+	int size_list[3] = { 20, 26, 30 };
 	float* src_array[4] = { NULL, NULL, NULL, NULL };
 	float* dst_c_array[4] = { NULL, NULL, NULL, NULL };
 	float* dst_x86_64_array[4] = { NULL, NULL, NULL, NULL };

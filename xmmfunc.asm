@@ -96,7 +96,7 @@ jz %%MEAN_SUM_BULK_N_PARTIAL  ; jmp if no remaining
 %%L2_MEAN_REMAINDER_LOOP:
     cvtss2sd xmm0, [rdx]    ; xmm0 <-dp(8-bytes)- rdx
     addsd xmm1, xmm0        ; xmm0 <- xmm0 + xmm1
-    add rdx, 4              ; FIXED: advance pointer for remainder
+    add rdx, 4              ; advance pointer for remainder
     loop %%L2_MEAN_REMAINDER_LOOP 
 %%MEAN_SUM_BULK_N_PARTIAL:
 %endmacro
@@ -113,11 +113,11 @@ cvtsi2sd xmm1,  rcx         ; xmm0(N) <-dp(8-bytes)- rcx
 divsd xmm0, xmm1            ; mean = sum / N
 cvtsd2ss xmm2, xmm0         ; xmm2 <-sp(4-bytes)- xmm0
 movss [r9], xmm2            ; sum *= xmm2
-vmovddup xmm0, xmm0         ; FIXED: broadcast mean double across xmm0
+vmovddup xmm0, xmm0         ; broadcast mean double across xmm0
 %endmacro
 
 %macro get_sum_for_variance 0
-mov rdx, r12                ; FIXED: reset rdx to src_array start
+mov rdx, r12                ; reset rdx to src_array start
 var_setup_register
 var_check_remainder
 var_add_bulk_loop
@@ -181,12 +181,12 @@ movss       [rax], xmm3         ; store *var
 %endmacro
 
 %macro get_zscore 0
-mov         rdx, r12            ; FIXED: reset rdx to src_array start
+mov         rdx, r12            ; reset rdx to src_array start
 addsd       xmm2, [small_float]
 sqrtsd      xmm2, xmm2          ; get std := sqrt(var)
 movsd       xmm3, [one]
-divsd       xmm3, xmm2          ; FIXED: scalar reciprocal calculation (replaced vrcp28pd)
-vmovddup    xmm2, xmm3          ; FIXED: broadcast reciprocal stddev [recip, recip]
+divsd       xmm3, xmm2          ; scalar reciprocal calculation (replaced vrcp28pd)
+vmovddup    xmm2, xmm3          ; broadcast reciprocal stddev [recip, recip]
 
 mov         rcx, rdi
 cmp         rcx, 0
